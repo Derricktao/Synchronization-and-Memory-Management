@@ -25,11 +25,8 @@ sem_t sem_create(size_t count)
 int sem_destroy(sem_t sem)
 {
 	if(!sem||!sem->waiting_queue){return -1;}
-	else
-	{
-		free(sem->waiting_queue);
-		free(sem);
-	}
+	free(sem->waiting_queue);
+	free(sem);
 	return 0;
 }
 
