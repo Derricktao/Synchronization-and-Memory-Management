@@ -1,5 +1,5 @@
 targets	:= libuthread.a
-objs	:= queue.o sem.o tps.o
+objs	:= queue.o sem.o tps.o thread.o
 
 CC	:= gcc
 CFLAGS	:= -Wall -Werror
@@ -24,4 +24,4 @@ libuthread.a: $(objs)
 	$(Q)$(CC) $(CFLAGS) -o $@ -c $< $(DEPFLAGS)
 clean:
 	@echo "clean"
-	$(Q)rm -f $(targets) $(objs) $(deps)
+	$(Q)rm -f $(targets) queue.o sem.o tps.o $(deps)
