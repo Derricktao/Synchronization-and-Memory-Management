@@ -1,5 +1,5 @@
 targets	:= libuthread.a
-objs	:= queue.o sem.o thread.o tps.o
+objs	:= queue.o sem.o tps.o
 
 CC	:= gcc
 CFLAGS	:= -Wall -Werror
