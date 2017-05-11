@@ -2,7 +2,7 @@ targets	:= libuthread.a
 objs	:= queue.o sem.o tps.o thread.o
 
 CC	:= gcc
-CFLAGS	:= -Wall -Werror
+CFLAGS	:= -Wall
 CFLAGS	+= -g
 STATIC_BUILD := ar rcs
 
