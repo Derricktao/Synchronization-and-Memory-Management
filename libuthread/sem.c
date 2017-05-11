@@ -9,10 +9,9 @@
 
 typedef struct semaphore
 {
-	size_t count;
-	queue_t waiting_queue;
+	size_t count;//typedef struct semaphore *sem_t; in sem.h
+	queue_t waiting_queue;//typedef struct queue* queue_t; in queue.h
 }*sem_t;
-//typedef struct semaphore *sem_t; defined in .h
 
 sem_t sem_create(size_t count)
 {
