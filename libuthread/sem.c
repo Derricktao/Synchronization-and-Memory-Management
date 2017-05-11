@@ -2,6 +2,7 @@
 #include <assert.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #include "queue.h"
 #include "sem.h"
@@ -31,6 +32,7 @@ int sem_destroy(sem_t sem)
 
 int sem_down(sem_t sem)
 {
+	printf("count is : %lu\n",sem->count);
 	if(!sem||!sem->waiting_queue){return -1;}
 	while(sem->count == 0){/*block itself*/}
 	sem->count -= 1;
@@ -39,6 +41,7 @@ int sem_down(sem_t sem)
 
 int sem_up(sem_t sem)
 {
+	printf("count is : %lu\n",sem->count);
 	if(!sem||!sem->waiting_queue){return -1;}
 	sem->count += 1;
 	return 0;
