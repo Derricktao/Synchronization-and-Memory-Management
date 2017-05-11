@@ -1,4 +1,4 @@
-//UNCOMPLETED
+//UNFINISHED
 #include <assert.h>
 #include <stddef.h>
 #include <stdlib.h>
@@ -24,10 +24,7 @@ sem_t sem_create(size_t count)
 
 int sem_destroy(sem_t sem)
 {
-	if(!sem||!sem->waiting_queue)
-	{
-		return -1;
-	}
+	if(!sem||!sem->waiting_queue){return -1;}
 	else
 	{
 		free(sem->waiting_queue);
@@ -38,6 +35,7 @@ int sem_destroy(sem_t sem)
 
 int sem_down(sem_t sem)
 {
+	if(!sem||!sem->waiting_queue){return -1;}
 	while(sem->count == 0){/*block itself*/}
 	sem->count -= 1;
 	return 0;
@@ -45,6 +43,7 @@ int sem_down(sem_t sem)
 
 int sem_up(sem_t sem)
 {
+	if(!sem||!sem->waiting_queue){return -1;}
 	sem->count += 1;
 	return 0;
 }
