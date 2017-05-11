@@ -1,17 +1,27 @@
+targets	:= libuthread.a
+objs	:= queue.o sem.o thread.o tps.o
 
-libuthread.a: queue.o sem.o thread.o tps.o
-	ar rcs libuthread.a queue.o sem.o thread.o tps.o
+CC	:= gcc
+CFLAGS	:= -Wall -Werror
+CFLAGS	+= -g
+STATIC_BUILD := ar rcs
 
-queue.o: queue.c queue.h
-	gcc -g -c queue.c
+ifneq ($(V),1)
+	Q = @
+endif
 
-tps.o: tps.c tps.h
-	gcc -g -c tps.c
+all: $(targets)
 
-sem.o: sem.c sem.h
-	gcc -g -c sem.c
-	
-	#Already have thread.o, don't need to create
+deps	:= $(patsubst %.o,%.d,$(objs))
+-include $(deps)
+DEPFLAGS = -MMD -MF $(@:.o=.d)
+
+libuthread.a: $(objs)
+	@echo "STATIC_BUILD $@"
+	$(Q)$(STATIC_BUILD) $(@) $(^)
+%.o: %.c
+	@echo "CC $@"
+	$(Q)$(CC) $(CFLAGS) -o $@ -c $< $(DEPFLAGS)
 clean:
-	rm -r libuthread.a tps.o queue.o sem.o
-
+	@echo "clean"
+	$(Q)rm -f $(targets) $(objs) $(deps)
