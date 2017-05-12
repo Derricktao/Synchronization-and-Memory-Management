@@ -33,19 +33,16 @@ int sem_destroy(sem_t sem)
 
 int sem_down(sem_t sem)
 {
-
-	//printf("count is : %lu\n",sem->count);
+	enter_critical_section();
 	if(!sem||!sem->waiting_queue){return -1;}
-	if((sem->count == 0) && (queue_length(sem->waiting_queue) > 0)){
-		queue_enqueue(sem->waiting_queue, (void *) pthread_self());
+	if(sem->count == 0){
+		pthread_t tid;
+		tid = pthread_self();
+		queue_enqueue(sem->waiting_queue, (void *) &tid);
 		thread_block();
 	}
-	while(sem->count == 0){
-		/*block itself*/
-		printf("thread %lu is waiting\n", pthread_self());
-		sleep(5);
-	}
-	enter_critical_section();
+	//while(sem->count == 0){/*block itself*/}
+
 	sem->count -= 1;
 	exit_critical_section();
 	return 0;
@@ -53,17 +50,15 @@ int sem_down(sem_t sem)
 
 int sem_up(sem_t sem)
 {
-
+	enter_critical_section();
 	//printf("count is : %lu\n",sem->count);
 	if(!sem||!sem->waiting_queue){return -1;}
-	if((sem->count == 0) && (queue_length(sem->waiting_queue) > 0)){
-		pthread_t temp;
+	if((queue_length(sem->waiting_queue) > 0)){
+		pthread_t* temp = malloc(sizeof(pthread_t));
+		//printf("%lu\n", *temp);
 		queue_dequeue(sem->waiting_queue, (void**) &temp);
-		thread_unblock(temp);
+		thread_unblock(*temp);
 	}
-
-
-	enter_critical_section();
 	sem->count += 1;
 	exit_critical_section();
 	return 0;
