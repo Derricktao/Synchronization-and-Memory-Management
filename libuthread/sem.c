@@ -54,7 +54,7 @@ int sem_up(sem_t sem)
 	//printf("count is : %lu\n",sem->count);
 	if(!sem||!sem->waiting_queue){return -1;}
 	if((queue_length(sem->waiting_queue) > 0)){
-		pthread_t* temp = malloc(sizeof(pthread_t));
+		pthread_t* temp = NULL;
 		//printf("%lu\n", *temp);
 		queue_dequeue(sem->waiting_queue, (void**) &temp);
 		thread_unblock(*temp);
