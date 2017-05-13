@@ -71,10 +71,14 @@ int find_target_TPS(pthread_t target_tid){
 
 int tps_init(int segv)
 {
+	if (tb.init)
+		return -1;
 	tb.init = 1;
 	tb.index = 0;
 	tb.size = DEFAULT_SIZE;
 	tb.tps_array = malloc(DEFAULT_SIZE*sizeof(TPS));
+	if (tb.tps_array == NULL)
+		return -1;
 	return 0;
 }
 
