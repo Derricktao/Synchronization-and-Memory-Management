@@ -13,7 +13,7 @@
 #include "thread.h"
 #include "tps.h"
 
-#define DEFAULT_SIZE 10
+#define DEFAULT_SIZE 1
 
 /*
 *	Private Section
@@ -40,12 +40,28 @@ TPS_BANK tb; // global vairiable
 *	If malloc returns a NULL, function should return -1. If succeed, return 0
 */
 int expand_tps_array(){
-	/* TO DO:
+	/*
 	* malloc an new array of double the size of the old array
 	* copy the old array's content into the new allocated array
 	* during the copy process, ignore the invalid cells created 
 	* from tps_destroy();
 	*/
+
+	//printf("expand_tps_array\n");
+	TPS* temp = tb.tps_array;
+	tb.tps_array = malloc(tb.size*2*sizeof(TPS));
+
+	tb.index = 0;
+	for(int i =0; i < tb.size; i++){
+		if (temp[i].valid){
+			tb.tps_array[tb.index].tid = temp[i].tid;
+			tb.tps_array[tb.index].map = temp[i].map;
+			tb.tps_array[tb.index].valid = 1;
+			tb.index++;
+		}
+	}
+	free(temp);
+	tb.size = tb.size*2;
 	return 0;
 }
 
@@ -77,6 +93,9 @@ int tps_init(int segv)
 	tb.index = 0;
 	tb.size = DEFAULT_SIZE;
 	tb.tps_array = malloc(DEFAULT_SIZE*sizeof(TPS));
+	for(int i = 0; i < tb.size; i++){
+		tb.tps_array[i].valid = 0;
+	}
 	if (tb.tps_array == NULL)
 		return -1;
 	return 0;
@@ -142,7 +161,6 @@ int tps_write(size_t offset, size_t length, char *buffer)
 
 int tps_clone(pthread_t tid)
 {
-	printf("tps_clone, tps_array size is %d\n", tb.size);
 	// first phase: the cloned TPS's content(only) should be copied directly
 	int sink_index, src_index;
 	if ((sink_index = find_target_TPS(pthread_self()))>=0)
@@ -153,8 +171,6 @@ int tps_clone(pthread_t tid)
 	tps_create();
 
 	sink_index = find_target_TPS(pthread_self());
-
-	printf("starting clone from index %d to index %d \n", sink_index, src_index);
 
 	memcpy(
 		tb.tps_array[sink_index].map,
