@@ -31,7 +31,8 @@ sem_t sem_create(size_t count);
  *
  * Deallocate semaphore @sem.
  *
- * Return: -1 if @sem is NULL, or 0 is @sem was successfully destroyed.
+ * Return: -1 if @sem is NULL or if other threads are still being blocked on
+ * @sem. 0 is @sem was successfully destroyed.
  */
 int sem_destroy(sem_t sem);
 
@@ -54,8 +55,9 @@ int sem_down(sem_t sem);
  *
  * Release a resource to semaphore @sem.
  *
- * Releasing a resource if the semaphore was currently empty causes the first
- * thread in the waiting list to be unblocked.
+ * If the waiting list associated to @sem is not empty, releasing a resource
+ * also causes the first thread (i.e. the oldest) in the waiting list to be
+ * unblocked.
  *
  * Return: -1 if @sem is NULL. 0 if semaphore was successfully released.
  */

@@ -79,5 +79,8 @@ int main(int argc, char **argv)
 	pthread_join(tid[0], NULL);
 	pthread_join(tid[1], NULL);
 
+	sem_destroy(t.sem1);
+	sem_destroy(t.sem2);
+
 	return 0;
 }

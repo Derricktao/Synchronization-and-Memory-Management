@@ -8,8 +8,8 @@
 #include <tps.h>
 #include <sem.h>
 
-char *msg1 = "Hello world!\n";
-char *msg2 = "hello world!\n";
+char msg1[TPS_SIZE] = "Hello world!\n";
+char msg2[TPS_SIZE] = "hello world!\n";
 
 sem_t sem1, sem2;
 

@@ -50,6 +50,7 @@ void* source(void *arg)
 	/* mark completion */
 	c->value = -1;
 	sem_up(c->consume);
+	sem_down(c->produce);
 
 	return NULL;
 }
@@ -79,11 +80,12 @@ void* filter(void *arg)
 /* Consumer thread */
 void* sink(void *arg)
 {
-	channel_t *p = (channel_t*) malloc(sizeof(channel_t));
+	channel_t *init_p = (channel_t*) malloc(sizeof(channel_t)), *p;
 	int value;
 	pthread_t tid;
 	filter_t *f_head = NULL;
 
+	p = init_p;
 	p->produce = sem_create(0);
 	p->consume = sem_create(0);
 
@@ -120,9 +122,14 @@ void* sink(void *arg)
 	}
 
 	pthread_join(tid, NULL);
+	sem_destroy(init_p->produce);
+	sem_destroy(init_p->consume);
+
 	while (f_head) {
 		filter_t *old = f_head;
 		pthread_join(f_head->tid, NULL);
+		sem_destroy(f_head->right->produce);
+		sem_destroy(f_head->right->consume);
 		f_head = f_head->next;
 		free(old);
 	}

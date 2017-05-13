@@ -56,7 +56,7 @@ void* producer(void* arg)
 
 	while (count < t->maxcount) {
 		size_t i, n = random() % BUFFER_SIZE + 1;
-		n = clamp(n, t->maxcount - count + 1);
+		n = clamp(n, t->maxcount - count);
 
 		printf("Producer wants to put %zu items into buffer...\n", n);
 		for (i = 0; i < n; i++) {
@@ -106,6 +106,9 @@ int main(int argc, char **argv)
 
 	pthread_join(tid[0], NULL);
 	pthread_join(tid[1], NULL);
+
+	sem_destroy(t.empty);
+	sem_destroy(t.full);
 
 	return 0;
 }

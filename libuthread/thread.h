@@ -9,6 +9,11 @@
  * By calling this function the current thread becomes blocked. It can only be
  * unblocked by another thread calling `thread_unblock()`.
  *
+ * If this function is called in a critical section (i.e. within a block of code
+ * located after a call to 'enter_critical_section()'), it will exit the
+ * critical section before going to sleep and re-enter the critical section upon
+ * wake-up.
+ *
  * Return: -1 in case of failure, 0 otherwise
  */
 int thread_block(void);
