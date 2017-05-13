@@ -142,12 +142,20 @@ int tps_write(size_t offset, size_t length, char *buffer)
 
 int tps_clone(pthread_t tid)
 {
+	printf("tps_clone, tps_array size is %d\n", tb.size);
 	// first phase: the cloned TPS's content(only) should be copied directly
 	int sink_index, src_index;
 	if ((sink_index = find_target_TPS(pthread_self()))>=0)
 		return -1; // Return -1 if current thread already has a TPS
 	if ((src_index = find_target_TPS(tid))==-1)
 		return -1; // Return -1 if target thread doesn't have a TPS
+
+	tps_create();
+
+	sink_index = find_target_TPS(pthread_self());
+
+	printf("starting clone from index %d to index %d \n", sink_index, src_index);
+
 	memcpy(
 		tb.tps_array[sink_index].map,
 		tb.tps_array[src_index].map,

@@ -61,6 +61,7 @@ void* thread1(void* arg)
 	/* Read the TPS and make sure it contains the original */
 	memset(buffer, 0, TPS_SIZE);
 	tps_read(0, TPS_SIZE, buffer);
+	printf("buffer is %s", buffer);
 	assert(!memcmp(msg1, buffer, TPS_SIZE));
 	printf("thread1: read OK!\n");
 
