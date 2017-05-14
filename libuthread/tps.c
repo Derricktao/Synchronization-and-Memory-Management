@@ -87,18 +87,20 @@ static void segv_handler(int sig, siginfo_t *si, void *context)
      * fault occurred
      */
     void *p_fault = (void*)((uintptr_t)si->si_addr & ~(TPS_SIZE - 1));
-
     /*
      * Iterate through all the TPS areas and find if p_fault matches one of them
      */
-    
-    // TODO
+    int match = 0;
+    for (int i =0; i < tb.index; i++){
+    	if(tb.tps_array[i].map == p_fault){
+    		match = 1;
+    		break;
+    	}
+    }
 
-/*
-    if (// There is a match )
-        // Printf the following error message 
+    if (match)
         fprintf(stderr, "TPS protection error!\n");
-*/
+
     /* In any case, restore the default signal handlers */
     signal(SIGSEGV, SIG_DFL);
     signal(SIGBUS, SIG_DFL);
@@ -195,7 +197,6 @@ int tps_read(size_t offset, size_t length, char *buffer)
 	mprotect(tb.tps_array[index].map, TPS_SIZE, PROT_READ);
 	memcpy(buffer, tb.tps_array[index].map + offset, length);
 	mprotect(tb.tps_array[index].map, TPS_SIZE, PROT_NONE);
-
 	return 0;
 }
 
@@ -225,7 +226,6 @@ int tps_clone(pthread_t tid)
 	tps_create();
 
 	sink_index = find_target_TPS(pthread_self());
-
 
 	mprotect(tb.tps_array[sink_index].map, TPS_SIZE, PROT_WRITE);
 	mprotect(tb.tps_array[src_index].map, TPS_SIZE, PROT_READ);
