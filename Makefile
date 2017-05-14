@@ -32,12 +32,12 @@ CC	= gcc
 CFLAGS	:= -Wall -Werror
 CFLAGS	+= -pipe
 ## Debug flag
-#ifneq ($(D),1)
-#CFLAGS	+= -O2
-#else
+ifneq ($(D),1)
+CFLAGS	+= -O2
+else
 CFLAGS	+= -O0
 CFLAGS	+= -g
-#endif
+endif
 
 # Include path
 INCLUDE := -I$(UTHREADPATH)

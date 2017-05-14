@@ -13,7 +13,7 @@
 #include "thread.h"
 #include "tps.h"
 
-#define DEFAULT_SIZE 1
+#define DEFAULT_SIZE 10
 #define MAX_NUM_ALLOWED_TO_SHARE 100
 /*
 *	Private Section
@@ -51,7 +51,7 @@ int expand_tps_array(){
 	*/
 	TPS* old_array = tb.tps_array;
 	tb.tps_array = malloc(tb.size*2*sizeof(TPS));
-
+	if (!tb.tps_array) return -1;
 	tb.index = 0;
 	for(int i =0; i < tb.size; i++){
 		if (old_array[i].valid){
@@ -126,7 +126,7 @@ int tps_create_CoW(void)
 
 	tb.index++;
 	if (tb.index == tb.size) // array is full
-		if(expand_tps_array() == -1) // if expand fails (malloc fails)
+		if(expand_tps_array()) // if expand fails
 			return -1;
 	return 0;
 }
@@ -152,14 +152,17 @@ int tps_init(int segv)
 	tb.index = 0;
 	tb.size = DEFAULT_SIZE;
 	tb.tps_array = malloc(DEFAULT_SIZE*sizeof(TPS));
+	if (!tb.tps_array)
+		return -1;
 	for(int i = 0; i < tb.size; i++){
 		tb.tps_array[i].valid = 0;
 		tb.tps_array[i].page = malloc(sizeof(PAGE));
+		if (!tb.tps_array[i].page)
+			return -1;
 		tb.tps_array[i].page->map = NULL;
 		tb.tps_array[i].page->reference_counter = 0;
 	}
-	if (tb.tps_array == NULL)
-		return -1;
+	
 	return 0;
 }
 
@@ -171,6 +174,8 @@ int tps_create(void)
 
 	tb.tps_array[tb.index].tid = current_tid;
 	tb.tps_array[tb.index].page = malloc(sizeof(PAGE));
+	if (!tb.tps_array[tb.index].page)
+		return -1;
 	tb.tps_array[tb.index].page->map = mmap(
 		NULL,
 		TPS_SIZE,
@@ -190,7 +195,7 @@ int tps_create(void)
 
 	tb.index++;
 	if (tb.index == tb.size) // array is full
-		if(expand_tps_array() == -1) // if expand fails (malloc fails)
+		if(expand_tps_array()) // if expand fails
 			return -1;
 	return 0;
 }
@@ -217,12 +222,13 @@ int tps_read(size_t offset, size_t length, char *buffer)
 	int index;
 	if ((index = find_target_TPS(pthread_self()))==-1)
 		return -1; // Return -1 if current thread doesn't have a TPS.
-	if (TPS_SIZE-offset-length < 0)
+	if (length - offset > TPS_SIZE)
 		return -1; // reading operation is out of bound
-
-	mprotect(tb.tps_array[index].page->map, TPS_SIZE, PROT_READ);
+	if(mprotect(tb.tps_array[index].page->map, TPS_SIZE, PROT_READ))
+		return -1;
 	memcpy(buffer, tb.tps_array[index].page->map + offset, length);
-	mprotect(tb.tps_array[index].page->map, TPS_SIZE, PROT_NONE);
+	if(mprotect(tb.tps_array[index].page->map, TPS_SIZE, PROT_NONE))
+		return -1;
 	return 0;
 }
 
@@ -231,10 +237,10 @@ int tps_write(size_t offset, size_t length, char *buffer)
 	int index;
 	if ((index = find_target_TPS(pthread_self()))==-1)
 		return -1; // Return -1 if current thread doesn't have a TPS
-	if (TPS_SIZE-offset-length < 0)
+	if (length - offset > TPS_SIZE)
 		return -1; // reading operation is out of bound
 
-	if (tb.tps_array[index].page->reference_counter > 0){
+	if (tb.tps_array[index].page->reference_counter){
 		PAGE* old_page = tb.tps_array[index].page;
 		tb.tps_array[index].page = malloc(sizeof(PAGE));
 		tb.tps_array[index].page->map = mmap(
@@ -247,16 +253,21 @@ int tps_write(size_t offset, size_t length, char *buffer)
 		);
 		tb.tps_array[index].page->reference_counter = 0;
 
-		mprotect(old_page->map, TPS_SIZE, PROT_READ);
+		if(mprotect(old_page->map, TPS_SIZE, PROT_READ))
+			return -1;
 		memcpy(tb.tps_array[index].page->map, old_page->map, TPS_SIZE);
-		mprotect(old_page->map, TPS_SIZE, PROT_NONE);
-		mprotect(tb.tps_array[index].page->map, TPS_SIZE, PROT_NONE);
+		if(mprotect(old_page->map, TPS_SIZE, PROT_NONE))
+			return -1;
+		if(mprotect(tb.tps_array[index].page->map, TPS_SIZE, PROT_NONE))
+			return -1;
 		old_page->reference_counter--;
 	}
 
-	mprotect(tb.tps_array[index].page->map, TPS_SIZE, PROT_WRITE);
+	if(mprotect(tb.tps_array[index].page->map, TPS_SIZE, PROT_WRITE)) 
+		return -1;
 	memcpy(tb.tps_array[index].page->map + offset, buffer, length);
-	mprotect(tb.tps_array[index].page->map, TPS_SIZE, PROT_NONE);
+	if(mprotect(tb.tps_array[index].page->map, TPS_SIZE, PROT_NONE)) 
+		return -1;
 	return 0;
 }
 
@@ -268,8 +279,9 @@ int tps_clone(pthread_t tid)
 		return -1; // Return -1 if current thread already has a TPS
 	if ((src_index = find_target_TPS(tid))==-1)
 		return -1; // Return -1 if target thread doesn't have a TPS
+	if (tps_create_CoW()) 
+		return -1;
 
-	tps_create_CoW();
 	sink_index = find_target_TPS(pthread_self());
 	tb.tps_array[sink_index].page = tb.tps_array[src_index].page;
 	tb.tps_array[sink_index].page->reference_counter++;

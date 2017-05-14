@@ -10,9 +10,9 @@
 
 typedef struct semaphore
 {
-	size_t count;//typedef struct semaphore *sem_t; in sem.h
+	size_t count;
 	queue_t waiting_queue;//typedef struct queue* queue_t; in queue.h
-}*sem_t;
+}*sem_t; //typedef struct semaphore *sem_t; in sem.h
 
 sem_t sem_create(size_t count)
 {
@@ -42,8 +42,6 @@ int sem_down(sem_t sem)
 		queue_enqueue(sem->waiting_queue, (void *) &tid);
 		thread_block();
 	}
-	//while(sem->count == 0){/*block itself*/}
-
 	sem->count -= 1;
 	exit_critical_section();
 	return 0;
@@ -52,11 +50,9 @@ int sem_down(sem_t sem)
 int sem_up(sem_t sem)
 {
 	enter_critical_section();
-	//printf("count is : %lu\n",sem->count);
 	if(!sem||!sem->waiting_queue){return -1;}
 	if((queue_length(sem->waiting_queue) > 0)){
 		pthread_t* temp = NULL;
-		//printf("%lu\n", *temp);
 		queue_dequeue(sem->waiting_queue, (void**) &temp);
 		thread_unblock(*temp);
 	}
