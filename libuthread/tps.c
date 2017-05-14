@@ -79,6 +79,33 @@ int find_target_TPS(pthread_t target_tid){
 	}
 	return -1;
 }
+
+static void segv_handler(int sig, siginfo_t *si, void *context)
+{
+    /*
+     * Get the address corresponding to the beginning of the page where the
+     * fault occurred
+     */
+    void *p_fault = (void*)((uintptr_t)si->si_addr & ~(TPS_SIZE - 1));
+
+    /*
+     * Iterate through all the TPS areas and find if p_fault matches one of them
+     */
+    
+    // TODO
+
+/*
+    if (// There is a match )
+        // Printf the following error message 
+        fprintf(stderr, "TPS protection error!\n");
+*/
+    /* In any case, restore the default signal handlers */
+    signal(SIGSEGV, SIG_DFL);
+    signal(SIGBUS, SIG_DFL);
+    /* And transmit the signal again in order to cause the program to crash */
+    raise(sig);
+}
+
 /*
 *	Public Functions
 */
@@ -87,6 +114,15 @@ int tps_init(int segv)
 {
 	if (tb.init)
 		return -1;
+	if (segv) {
+        struct sigaction sa;
+
+        sigemptyset(&sa.sa_mask);
+        sa.sa_flags = SA_SIGINFO;
+        sa.sa_sigaction = segv_handler;
+        sigaction(SIGBUS, &sa, NULL);
+        sigaction(SIGSEGV, &sa, NULL);
+    }
 	tb.init = 1;
 	tb.index = 0;
 	tb.size = DEFAULT_SIZE;
@@ -109,7 +145,7 @@ int tps_create(void)
 	tb.tps_array[tb.index].map = mmap(
 		NULL,
 		TPS_SIZE,
-		PROT_READ|PROT_WRITE|PROT_EXEC,
+		PROT_NONE,
 		MAP_ANONYMOUS|MAP_PRIVATE,
 		-1,
 		0
@@ -155,7 +191,11 @@ int tps_read(size_t offset, size_t length, char *buffer)
 		return -1; // Return -1 if current thread doesn't have a TPS.
 	if (TPS_SIZE-offset-length < 0)
 		return -1; // reading operation is out of bound
+
+	mprotect(tb.tps_array[index].map, TPS_SIZE, PROT_READ);
 	memcpy(buffer, tb.tps_array[index].map + offset, length);
+	mprotect(tb.tps_array[index].map, TPS_SIZE, PROT_NONE);
+
 	return 0;
 }
 
@@ -166,7 +206,10 @@ int tps_write(size_t offset, size_t length, char *buffer)
 		return -1; // Return -1 if current thread doesn't have a TPS
 	if (TPS_SIZE-offset-length < 0)
 		return -1; // reading operation is out of bound
+
+	mprotect(tb.tps_array[index].map, TPS_SIZE, PROT_WRITE);
 	memcpy(tb.tps_array[index].map + offset, buffer, length);
+	mprotect(tb.tps_array[index].map, TPS_SIZE, PROT_NONE);
 	return 0;
 }
 
@@ -183,11 +226,16 @@ int tps_clone(pthread_t tid)
 
 	sink_index = find_target_TPS(pthread_self());
 
+
+	mprotect(tb.tps_array[sink_index].map, TPS_SIZE, PROT_WRITE);
+	mprotect(tb.tps_array[src_index].map, TPS_SIZE, PROT_READ);
 	memcpy(
 		tb.tps_array[sink_index].map,
 		tb.tps_array[src_index].map,
 		TPS_SIZE
 	);
+	mprotect(tb.tps_array[sink_index].map, TPS_SIZE, PROT_NONE);
+	mprotect(tb.tps_array[src_index].map, TPS_SIZE, PROT_NONE);
 	return 0;
 }
 
