@@ -13,7 +13,7 @@
 #include "thread.h"
 #include "tps.h"
 
-#define DEFAULT_SIZE 1
+#define DEFAULT_SIZE 100
 
 /*
 *	Private Section
@@ -47,7 +47,7 @@ int expand_tps_array(){
 	* from tps_destroy();
 	*/
 
-	//printf("expand_tps_array\n");
+	printf("expand_tps_array\n");
 	TPS* temp = tb.tps_array;
 	tb.tps_array = malloc(tb.size*2*sizeof(TPS));
 
@@ -58,6 +58,14 @@ int expand_tps_array(){
 			tb.tps_array[tb.index].map = temp[i].map;
 			tb.tps_array[tb.index].valid = 1;
 			tb.index++;
+		}
+		else{
+			if(temp[i].map){
+				if(munmap(temp[i].map,TPS_SIZE)){
+					perror("munmap");
+					exit(EXIT_FAILURE);
+				}
+			}
 		}
 	}
 	free(temp);
@@ -108,12 +116,26 @@ int tps_create(void)
 		return -1; // return -1 if the current thread already has a TPS
 
 	tb.tps_array[tb.index].tid = current_tid;
-	//tb.tps_array[tb.index].map = mmap(); //TO DO: need to check the API	
+	//tb.tps_array[tb.index].map = mmap(); //TO DO: need to check the API
+	size_t page_size = sysconf(_SC_PAGE_SIZE);
+	assert(page_size == TPS_SIZE);
+	tb.tps_array[tb.index].map = mmap(
+		NULL,
+		page_size,
+		PROT_READ|PROT_WRITE,
+		MAP_ANONYMOUS,
+		-1,
+		(off_t) 0
+	);	
 	// place holder: just malloc should be able to pass phase 1 as well
-	tb.tps_array[tb.index].map = malloc(TPS_SIZE);
+	//tb.tps_array[tb.index].map = malloc(TPS_SIZE);
 
-	if (tb.tps_array[tb.index].map == NULL)
+	if (!tb.tps_array[tb.index].map || 
+		tb.tps_array[tb.index].map == MAP_FAILED){
+		perror("mmap");
+		printf("map is fucked\n");
 		return -1;
+	}
 
 	tb.tps_array[tb.index].valid = 1;
 
@@ -150,6 +172,7 @@ int tps_read(size_t offset, size_t length, char *buffer)
 
 int tps_write(size_t offset, size_t length, char *buffer)
 {
+	printf("tps_write\n");
 	int index;
 	if ((index = find_target_TPS(pthread_self()))==-1)
 		return -1; // Return -1 if current thread doesn't have a TPS
