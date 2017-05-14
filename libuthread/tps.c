@@ -13,12 +13,11 @@
 #include "thread.h"
 #include "tps.h"
 
-#define DEFAULT_SIZE 10
+#define DEFAULT_SIZE 1
 #define MAX_NUM_ALLOWED_TO_SHARE 100
 /*
 *	Private Section
 */
-
 typedef struct{
 	void* map;
 	int reference_counter;
@@ -35,7 +34,6 @@ typedef struct{
 	int index; // the index of the next free cell
 	int size; // the current size of the array
 	TPS* tps_array; // an array of TPS, enough for proof of concept O(size)
-	
 } TPS_BANK;
 
 TPS_BANK tb; // global vairiable
@@ -51,19 +49,19 @@ int expand_tps_array(){
 	* during the copy process, ignore the invalid cells created 
 	* from tps_destroy();
 	*/
-	TPS* temp = tb.tps_array;
+	TPS* old_array = tb.tps_array;
 	tb.tps_array = malloc(tb.size*2*sizeof(TPS));
 
 	tb.index = 0;
 	for(int i =0; i < tb.size; i++){
-		if (temp[i].valid){
-			tb.tps_array[tb.index].tid = temp[i].tid;
-			tb.tps_array[tb.index].page->map = temp[i].page->map;
+		if (old_array[i].valid){
+			tb.tps_array[tb.index].tid = old_array[i].tid;
+			tb.tps_array[tb.index].page = old_array[i].page;
 			tb.tps_array[tb.index].valid = 1;
 			tb.index++;
 		}
 	}
-	free(temp);
+	free(old_array);
 	tb.size = tb.size*2;
 	return 0;
 }
@@ -113,7 +111,7 @@ static void segv_handler(int sig, siginfo_t *si, void *context)
     raise(sig);
 }
 
-/*
+
 int tps_create_CoW(void)
 {
 	pthread_t current_tid = pthread_self();
@@ -121,15 +119,9 @@ int tps_create_CoW(void)
 		return -1; // return -1 if the current thread already has a TPS
 
 	tb.tps_array[tb.index].tid = current_tid;
+	tb.tps_array[tb.index].page = malloc(sizeof(PAGE));
 	tb.tps_array[tb.index].page->map = NULL;
-
-	if (!tb.tps_array[tb.index].page->map || 
-		tb.tps_array[tb.index].page->map == MAP_FAILED){
-		perror("mmap");
-		printf("map is fucked\n");
-		return -1;
-	}
-
+	tb.tps_array[tb.index].page->reference_counter = 0;
 	tb.tps_array[tb.index].valid = 1;
 
 	tb.index++;
@@ -138,7 +130,7 @@ int tps_create_CoW(void)
 			return -1;
 	return 0;
 }
-*/
+
 
 /*
 *	Public Functions
@@ -150,7 +142,6 @@ int tps_init(int segv)
 		return -1;
 	if (segv) {
         struct sigaction sa;
-
         sigemptyset(&sa.sa_mask);
         sa.sa_flags = SA_SIGINFO;
         sa.sa_sigaction = segv_handler;
@@ -164,6 +155,7 @@ int tps_init(int segv)
 	for(int i = 0; i < tb.size; i++){
 		tb.tps_array[i].valid = 0;
 		tb.tps_array[i].page = malloc(sizeof(PAGE));
+		tb.tps_array[i].page->map = NULL;
 		tb.tps_array[i].page->reference_counter = 0;
 	}
 	if (tb.tps_array == NULL)
@@ -243,19 +235,23 @@ int tps_write(size_t offset, size_t length, char *buffer)
 		return -1; // reading operation is out of bound
 
 	if (tb.tps_array[index].page->reference_counter > 0){
-		void* old_map = tb.tps_array[index].page->map;
+		PAGE* old_page = tb.tps_array[index].page;
+		tb.tps_array[index].page = malloc(sizeof(PAGE));
 		tb.tps_array[index].page->map = mmap(
 			NULL,
 			TPS_SIZE,
-			PROT_NONE,
+			PROT_WRITE,
 			MAP_ANONYMOUS|MAP_PRIVATE,
 			-1,
 			0
 		);
-		mprotect(old_map, TPS_SIZE, PROT_READ);
-		memcpy(buffer, old_map, TPS_SIZE);
-		mprotect(old_map, TPS_SIZE, PROT_NONE);
-		tb.tps_array[index].page->reference_counter--;
+		tb.tps_array[index].page->reference_counter = 0;
+
+		mprotect(old_page->map, TPS_SIZE, PROT_READ);
+		memcpy(tb.tps_array[index].page->map, old_page->map, TPS_SIZE);
+		mprotect(old_page->map, TPS_SIZE, PROT_NONE);
+		mprotect(tb.tps_array[index].page->map, TPS_SIZE, PROT_NONE);
+		old_page->reference_counter--;
 	}
 
 	mprotect(tb.tps_array[index].page->map, TPS_SIZE, PROT_WRITE);
@@ -273,14 +269,12 @@ int tps_clone(pthread_t tid)
 	if ((src_index = find_target_TPS(tid))==-1)
 		return -1; // Return -1 if target thread doesn't have a TPS
 
-	//tps_create_CoW();
-
-	tps_create();
-
+	tps_create_CoW();
 	sink_index = find_target_TPS(pthread_self());
-
-	//tb.tps_array[sink_index].page->map = tb.tps_array[src_index].page->map;
-
+	tb.tps_array[sink_index].page = tb.tps_array[src_index].page;
+	tb.tps_array[sink_index].page->reference_counter++;
+/*
+	// phase 2
 	mprotect(tb.tps_array[sink_index].page->map, TPS_SIZE, PROT_WRITE);
 	mprotect(tb.tps_array[src_index].page->map, TPS_SIZE, PROT_READ);
 	memcpy(
@@ -290,7 +284,7 @@ int tps_clone(pthread_t tid)
 	);
 	mprotect(tb.tps_array[sink_index].page->map, TPS_SIZE, PROT_NONE);
 	mprotect(tb.tps_array[src_index].page->map, TPS_SIZE, PROT_NONE);
-
+*/
 	return 0;
 }
 
