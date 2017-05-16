@@ -1,10 +1,13 @@
 # ECS 150: Project #3 - Semaphores and TPS
 
+#### Songyun Tao, 912075039
+#### Zhening Zhang, 998943279
+
 In the project, we have created a version of our own library that handles
 semaphores and thread private storage. Through this projects, we have gained a
 better understanding of synchronization and how to solve mutual exclusion.
 
-### Semaphore Implementation
+## Semaphore Implementation
 
 Semaphore is just a generalized lock that keeps a waiting list of the threads
 who want to modify the data, with the help of a queue. We have defined the
@@ -35,7 +38,7 @@ served (i.e. unblocked) in a FIFO order.
 `object and delete it when called. It's trival, so we will not discuss them
 `here.
 
-#### Problems Encountered
+### Problems Encountered
 
 At first we used a busy waiting while loop based on count as our blocking method
 inside the ```sem_down``` function,  which allowed us to pass all the test
@@ -54,7 +57,7 @@ But we spent some time on trouble shooting a racing condition after our library
 became a little more complicated. It turned out that we omitted to make the read
 operation for count as a critical session.
 
-### Theard Private Storage Implementation
+## Theard Private Storage Implementation
 
 Theard Private Storage (TPS) is another solution for mutual exclusion. Since
 every threads have its own privated address space, this implementaion make all
@@ -175,7 +178,8 @@ and ```mmap```; ```free``` and ```munmap```.
   which has the double the size of previous one, copy every valid cells into
   the new array, then destroy the old array.
 
-  8. Always use ```munmap``` to free the memory page, not ```free()```!
+  8. Always use ```munmap``` to free the memory page allocated by `mmap`, not
+  ```free()```!
 
 
 **useful resourse:**
@@ -185,6 +189,5 @@ http://man7.org/linux/man-pages/man2/mmap.2.html
 
 http://stackoverflow.com/questions/1739296/malloc-vs-mmap-in-c
 
-http://stackoverflow.com/questions/8475609/implementing-your-own-malloc-free-
-with-mmap-and-munmap
+http://stackoverflow.com/questions/8475609/implementing-your-own-malloc-free-with-mmap-and-munmap
 
