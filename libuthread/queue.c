@@ -1,136 +1,163 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
+
 #include "queue.h"
 
-typedef struct Node{
-    void *data;
-    struct Node* next;
-}ListNode;
+typedef struct node {
+	void* data;
+	struct node* next;
+}Node;
 
-struct queue {
-    int len;
-    ListNode *head;
-    ListNode *tail;
-};
-
-typedef struct queue* que_ptr;
+typedef struct queue {
+	Node* front;
+	Node* rear;
+	int length;
+}Queue;
 
 queue_t queue_create(void)
 {
-    que_ptr que = (struct queue *)malloc(sizeof(struct queue));
-
-    if(que == NULL)
-        return que;
-
-    que -> len = 0;
-    que -> head = que -> tail = NULL;
-    return que;
+	queue_t q = malloc(sizeof(Queue));
+	q->length = 0;
+	q->front = NULL;
+	q->rear = NULL;
+	return q;
 }
 
 int queue_destroy(queue_t queue)
 {
-    if(queue == NULL)
-        return -1;
-    else if(queue -> head == NULL || queue -> len == 0 )
-        return -1;
-    queue -> head = queue -> tail = NULL;
-    queue -> len = 0;
-    return 0;
+	if (queue == NULL || queue->length > 0)
+		return -1;
+	if (queue->front)
+		free(queue->front);
+	if (queue->rear)
+		free(queue->rear);
+	free(queue);
+	return 0;
 }
 
 int queue_enqueue(queue_t queue, void *data)
 {
-    ListNode *tmp = (ListNode*)malloc(sizeof(ListNode));
-    if(queue == NULL)
-      return -1;
-    if(data == NULL)
-        return -1;
-    if(tmp == NULL)
-        return -1;
+	if (queue == NULL || data == NULL)
+		return -1;
 
-    tmp -> next = NULL;
-    tmp -> data = data;
+	Node* temp = malloc(sizeof(Node));
+	if (temp == NULL)
+		return -1;
 
-    if(queue -> head == NULL){
-        queue -> head = queue -> tail = tmp;
-        queue -> len ++;
-    }
-    else{
-        queue -> tail -> next = tmp;
-        queue -> tail = tmp;
-        queue -> len ++;
-    }
-    return 0;
+	queue->length++;
+
+	temp->data = data;
+	temp->next = NULL;
+	if (queue->front == NULL && queue->rear == NULL){
+		queue->front = temp;
+		queue->rear = temp;
+		return 0;
+	}
+	queue->rear->next = temp;
+	queue->rear = temp;
+	return 0;
 }
 
 int queue_dequeue(queue_t queue, void **data)
 {
-    if(queue -> head == NULL || queue -> len == 0){
-        return -1;
-    }
 
-    *data = queue -> head -> data;
-    ListNode *prev = queue -> head;
-    queue -> head = queue -> head -> next;
-    free(prev);
-    queue -> len--;
-    return 0;
+	if (queue == NULL || queue->length == 0 || data == NULL)
+		return -1;
+
+	if (queue->front == NULL){
+		return -1;
+	}
+
+	if(queue!= NULL){
+		*data = queue->front->data;
+	}
+
+	if (*data == NULL)
+		return -1;
+
+	if (queue->front == queue->rear){
+		queue->front = NULL;
+		queue->rear = NULL;
+	}
+	else{
+		queue->front = queue->front->next;
+	}
+
+	queue->length--;
+	return 0;
 }
 
 int queue_delete(queue_t queue, void *data)
 {
-    if(queue -> head == NULL || queue -> len == 0){
-        return -1;
-    }
+	if (queue == NULL || data == NULL)
+		return -1;
 
-    ListNode *tmp, *prev;
-    tmp = queue -> head;
-    prev = NULL;
-    while(tmp && tmp -> data != data){
-        prev = tmp;
-        tmp = tmp -> next;
-    }
+	if (queue->front == NULL)
+		return -1;
 
-    if(tmp != NULL){//if tmp != NULL
-        if(prev == NULL)// if prev != NULL
-          queue -> head = tmp -> next;
-        else// tmp is head
-          prev -> next = tmp -> next;
+	Node* temp = queue->front;
+	Node* last = temp;
+	int found_flag = 0;
 
+	int i;
+	for (i = 0; i < queue->length; i++){
+		if (data == temp->data){
+			if (i == 0)
+				queue->front = temp->next;
+			else if (i == queue->length-1){
+                queue->rear = last;
+                queue->rear->next = NULL;
+            }
+			else
+				last->next = temp->next;
 
-        // free(tmp);
-        queue -> len -= 1;
-        return 0;
-    }
+			free(temp);
+			found_flag = 1;
+			queue->length--;
+			break;
+		}
+		last = temp;
+		temp = temp->next;
+	}
 
-    return -1;
+	if (queue->length == 0)
+		queue->front = queue->rear = NULL;
+
+	if (!found_flag){
+		return -1;
+	}
+	else
+		return 0;
 }
 
 int queue_iterate(queue_t queue, queue_func_t func, void *arg, void **data)
 {
-    if(func == NULL || queue -> len == 0 || queue == NULL)
-        return -1;
+	if (queue == NULL || func == NULL)
+		return -1;
 
-    ListNode *tmp = queue -> head;
-    int sign = 0;
+	Node* temp = queue->front;
 
-    while(tmp != NULL){
-        sign = func(queue, tmp->data, arg);
+	int return_value = 0;
+	int i;
+	for (i = 0; i < queue->length; i++){
+		if (data != NULL){
+			*data = temp->data; 
+		}
+		return_value = func(queue, temp->data, arg);
+		if(return_value == 1)
+			return 0;
+		temp = temp->next;
+	}
 
-        if(sign != 0){
-            *data = tmp -> data;
-            return 0;
-        }
-
-        tmp = tmp -> next;
-    }
-    if(data != NULL) // might fix here
-        *data = tmp -> data;
-    return 0;
+	return 0;
 }
 
 int queue_length(queue_t queue)
 {
-    return queue -> len;
+	if (queue == NULL)
+		return -1;
+	else 
+		return queue->length;
 }
+
